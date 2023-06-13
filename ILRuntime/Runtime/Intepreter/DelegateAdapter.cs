@@ -764,6 +764,88 @@ namespace ILRuntime.Runtime.Intepreter
     }
 #endif
 
+#region  增加6个参数的泛型注册器 日期:2019年9月11日  添加人：雷鸣辉
+    class MethodDelegateAdapter<T1, T2, T3, T4, T5, T6> : DelegateAdapter
+    {
+        Action<T1, T2, T3, T4, T5, T6> action;
+
+        static InvocationTypes[] pTypes;
+
+        static MethodDelegateAdapter()
+        {
+            pTypes = new InvocationTypes[]
+            {
+                InvocationContext.GetInvocationType<T1>(),
+                InvocationContext.GetInvocationType<T2>(),
+                InvocationContext.GetInvocationType<T3>(),
+                InvocationContext.GetInvocationType<T4>(),
+                InvocationContext.GetInvocationType<T5>(),
+                InvocationContext.GetInvocationType<T6>(),
+            };
+        }
+        public MethodDelegateAdapter()
+        {
+
+        }
+
+        private MethodDelegateAdapter(Enviorment.AppDomain appdomain, ILTypeInstance instance, ILMethod method)
+            : base(appdomain, instance, method)
+        {
+            action = InvokeILMethod;
+        }
+        public override Type NativeDelegateType
+        {
+            get
+            {
+                return typeof(Action<T1, T2, T3, T4, T5, T6>);
+            }
+        }
+        public override Delegate Delegate
+        {
+            get
+            {
+                return action;
+            }
+        }
+        //邱励瑞仿照5个参数的版本做了调整  日期:2021年4月22日
+        unsafe void InvokeILMethod(T1 p1, T2 p2, T3 p3, T4 p4, T5 p5, T6 p6)
+        {
+            using (var ctx = BeginInvoke())
+            {
+                ctx.PushParameter(pTypes[0], p1);
+                ctx.PushParameter(pTypes[1], p2);
+                ctx.PushParameter(pTypes[2], p3);
+                ctx.PushParameter(pTypes[3], p4);
+                ctx.PushParameter(pTypes[4], p5);
+                ctx.PushParameter(pTypes[5], p6);
+                ILInvoke(ctx.Intepreter, ctx.ESP, ctx.ManagedStack);
+            }
+        }
+
+        public override IDelegateAdapter Instantiate(Enviorment.AppDomain appdomain, ILTypeInstance instance, ILMethod method)
+        {
+            return new MethodDelegateAdapter<T1, T2, T3, T4, T5, T6>(appdomain, instance, method);
+        }
+
+        public override IDelegateAdapter Clone()
+        {
+            var res = new MethodDelegateAdapter<T1, T2, T3, T4, T5, T6>(appdomain, instance, method);
+            res.isClone = true;
+            return res;
+        }
+
+        public override void Combine(Delegate dele)
+        {
+            action += (Action<T1, T2, T3, T4, T5, T6>)dele;
+        }
+
+        public override void Remove(Delegate dele)
+        {
+            action -= (Action<T1, T2, T3, T4, T5, T6>)dele;
+        }
+    }
+    #endregion
+
     class MethodDelegateAdapter : DelegateAdapter
     {
         Action action;

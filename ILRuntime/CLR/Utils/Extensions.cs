@@ -94,7 +94,8 @@ namespace ILRuntime.CLR.Utils
         static string ReplaceGenericArgument(string typename, string argumentName, string argumentType, bool isGA = false)
         {
             string baseType;
-            StringBuilder sb = new StringBuilder();
+            //StringBuilder sb = new StringBuilder();
+            StringBuilder sb = HotfixGate.StringBuilderPool.TakeObject();
             List<string> ga;
             bool isArray;
             byte rank;

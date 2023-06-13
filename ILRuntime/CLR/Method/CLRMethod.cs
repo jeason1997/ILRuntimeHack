@@ -343,7 +343,31 @@ namespace ILRuntime.CLR.Method
                     res = redirect(new ILContext(appdomain, intepreter, esp, mStack, this), instance, param, genericArguments);
                 else*/
                 {
-                    res = def.Invoke(instance, param);
+                    //2021.04.21 colin增加异常信息日志
+                    try
+                    {
+                        res = def.Invoke(instance, param);
+                    }
+                    catch (Exception exp)
+                    {
+                        var exp2 = exp.InnerException ?? exp;
+                      
+#if UNITY_EDITOR
+                        XLog.LogError($"CLRMethod.Invoke ApplicationException,def:{def},instance:{instance},\n param:{param},\n"
+                                      + $"Message:{exp2.Message} \n E1:{exp2.Data["StackTrace"]} \n E2:{exp2.StackTrace}\n"
+                                      +appdomain.DebugService.GetStackTrace(intepreter));
+#else
+                          XLog.LogError($"CLRMethod.Invoke ApplicationException,def:{def},instance:{instance},\n param:{param},\n"
+                            + $"Message:{exp2.Message} \n E1:{exp2.Data["StackTrace"]} \n E2:{exp2.StackTrace}");
+#endif
+                        
+                        throw;
+                    }
+                    // catch (Exception exp)
+                    // {
+                    //     XLog.LogError($"CLRMethod.Invoke exception,{ exp.Message} \n Exp1:{ exp.Data["StackTrace"]} Exp2: { exp.StackTrace}");
+                    //     throw;
+                    // }
                 }
 
                 FixReference(paramCount, esp, param, mStack, instance, !def.IsStatic);

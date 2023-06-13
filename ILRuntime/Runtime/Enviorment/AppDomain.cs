@@ -862,9 +862,8 @@ namespace ILRuntime.Runtime.Enviorment
                     for (int i = 0; i < genericArguments.Length; i++)
                     {
                         string key = null;
-                        if (bt is ILType)
+                        if (bt is ILType ilt)
                         {
-                            ILType ilt = (ILType)bt;
                             key = ilt.TypeDefinition.GenericParameters[i].FullName;
                         }
                         else
@@ -953,7 +952,8 @@ namespace ILRuntime.Runtime.Enviorment
 
         internal static void ParseGenericType(string fullname, out string baseType, out List<string> genericParams, out bool isArray, out byte rank)
         {
-            StringBuilder sb = new StringBuilder();
+            //StringBuilder sb = new StringBuilder();
+            StringBuilder sb = HotfixGate.StringBuilderPool.TakeObject();
             int depth = 0;
             rank = 0;
             baseType = "";
@@ -1057,6 +1057,8 @@ namespace ILRuntime.Runtime.Enviorment
             }
             else
                 baseType = fullname;
+
+            HotfixGate.StringBuilderPool.PutObject(sb);
         }
 
         string GetAssemblyName(IMetadataScope scope)

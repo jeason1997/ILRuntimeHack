@@ -404,6 +404,21 @@ namespace ILRuntime.CLR.Method
             private set;
         }
 
+        /// <summary>
+        /// by 邱励瑞 2021.3.18
+        /// 
+        /// 修改原因：
+        /// 以前的prewarm只对当前方法有效，所以开发者需要记住后台线程调用了哪些方法，一个个地prewarm，比较繁琐，维护困难
+        /// 修改之后，以递归方式prewarm当前方法，以及所有子调用。提高prewarm的准确性。
+        /// 
+        /// 用法：
+        /// 例如，后台线程的入口方法是EHotfix.Portal.DeserializeHotfixPBData()，可以这样做
+        /// var t = appdomain.GetType("EHotfix.Portal");
+        /// var m = t.GetMethod("DeserializeHotfixPBData", 0, true) as ILRuntime.CLR.Method.ILMethod;
+        /// m.Prewarm(true);
+        /// 
+        /// </summary>
+        /// <param name="recursive"> 是否递归prewarm所有子调用 </param>
         public void Prewarm(bool recursive)
         {
             HashSet<ILMethod> alreadyPrewarmed = null;
@@ -430,9 +445,8 @@ namespace ILRuntime.CLR.Method
                     case OpCodeEnum.Callvirt:
                         {
                             var m = appdomain.GetMethod(ins.TokenInteger);
-                            if (m is ILMethod)
+                            if (m is ILMethod ilm)
                             {
-                                ILMethod ilm = (ILMethod)m;
                                 //如果参数alreadyPrewarmed不为空，则不仅prewarm当前方法，还会递归prewarm所有子调用
                                 //如果参数alreadyPrewarmed为空，则只prewarm当前方法
                                 if (alreadyPrewarmed != null)
@@ -440,9 +454,8 @@ namespace ILRuntime.CLR.Method
                                     ilm.Prewarm(alreadyPrewarmed);
                                 }
                             }
-                            else if (m is CLRMethod)
+                            else if (m is CLRMethod clrm)
                             {
-                                CLRMethod clrm = (CLRMethod)m;
                                 ILRuntime.CLR.Utils.Extensions.GetTypeFlags(clrm.DeclearingType.TypeForCLR);
                             }
                         }
@@ -483,9 +496,8 @@ namespace ILRuntime.CLR.Method
                     case OpCodeREnum.Callvirt:
                         {
                             var m = appdomain.GetMethod(ins.Operand);
-                            if (m is ILMethod)
+                            if (m is ILMethod ilm)
                             {
-                                ILMethod ilm = (ILMethod)m;
                                 //如果参数alreadyPrewarmed不为空，则不仅prewarm当前方法，还会递归prewarm所有子调用
                                 //如果参数alreadyPrewarmed为空，则只prewarm当前方法
                                 if (alreadyPrewarmed != null)
@@ -493,9 +505,8 @@ namespace ILRuntime.CLR.Method
                                     ilm.Prewarm(alreadyPrewarmed);
                                 }
                             }
-                            else if (m is CLRMethod)
+                            else if (m is CLRMethod clrm)
                             {
-                                CLRMethod clrm = (CLRMethod)m;
                                 ILRuntime.CLR.Utils.Extensions.GetTypeFlags(clrm.DeclearingType.TypeForCLR);
                             }
                         }
@@ -519,7 +530,7 @@ namespace ILRuntime.CLR.Method
                 }
             }
         }
-        private void Prewarm(HashSet<ILMethod> alreadyPrewarmed)
+        public void Prewarm(HashSet<ILMethod> alreadyPrewarmed)
         {
             if (alreadyPrewarmed != null && alreadyPrewarmed.Add(this) == false)
                 return;
@@ -539,9 +550,8 @@ namespace ILRuntime.CLR.Method
                 {
                     t = appdomain.GetType(v.VariableType, DeclearingType, this);
                 }
-                if (t is CLRType)
+                if (t is CLRType ct)
                 {
-                    CLRType ct = (CLRType)t;
                     var fields = ct.Fields;
                     ILRuntime.CLR.Utils.Extensions.GetTypeFlags(ct.TypeForCLR);
                 }
@@ -563,6 +573,7 @@ namespace ILRuntime.CLR.Method
                 if (register)
                 {
                     JITCompiler jit = new JITCompiler(appdomain, declaringType, this);
+                    //Debug.Log($"--------  declaringType {declaringType}");
                     bodyRegister = jit.Compile(out stackRegisterCnt, out jumptablesR, addr, out registerSymbols);
                 }
                 else
@@ -973,7 +984,8 @@ namespace ILRuntime.CLR.Method
         {
             if (cachedName == null)
             {
-                StringBuilder sb = new StringBuilder();
+                //StringBuilder sb = new StringBuilder();
+                StringBuilder sb = HotfixGate.StringBuilderPool.TakeObject();
                 sb.Append(declaringType.FullName);
                 sb.Append('.');
                 sb.Append(Name);
